@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#eaf8f7" />
+  <title>Морской сапёр</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #245b62;
+      --muted: #6f9699;
+      --sea: #6fc7c0;
+      --sea-dark: #369f9a;
+      --foam: #f5fcfa;
+      --sand: #fff4df;
+      --coral: #f28f83;
+      --line: #d8eeea;
+      --shadow: 0 12px 34px rgba(48, 119, 117, .12);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      background:
+        radial-gradient(ellipse at 8% 4%, rgba(255,255,255,.95) 0 8%, transparent 27%),
+        radial-gradient(ellipse at 92% 18%, rgba(255,255,255,.7) 0 7%, transparent 24%),
+        linear-gradient(180deg, #eaf8f7 0%, #f5fbf5 58%, #fff8eb 100%);
+      color: var(--ink);
+      font-family: ui-rounded, "Trebuchet MS", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      padding: max(18px, env(safe-area-inset-top)) 12px max(24px, env(safe-area-inset-bottom));
+      -webkit-tap-highlight-color: transparent;
+    }
+    button { font: inherit; }
+    .app { width: min(100%, 560px); margin: 0 auto; }
+    .header { text-align: center; margin: 4px 0 16px; }
+    .eyebrow { color: var(--sea-dark); font-size: .75rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { margin: 5px 0 4px; font-size: clamp(1.85rem, 7vw, 2.65rem); line-height: 1.05; letter-spacing: -.045em; }
+    .subtitle { margin: 0; color: var(--muted); font-size: .92rem; }
+    .panel {
+      background: rgba(255,255,255,.82);
+      border: 1px solid rgba(207, 234, 229, .95);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+      backdrop-filter: blur(8px);
+    }
+    .setup { margin-bottom: 12px; }
+    .section-title { margin: 0 0 10px; font-size: .92rem; font-weight: 800; }
+    .flag-options { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .flag-choice {
+      min-width: 0; border: 1.5px solid var(--line); border-radius: 15px; background: #f8fdfb;
+      color: var(--ink); padding: 9px 4px 8px; cursor: pointer; display: flex; flex-direction: column;
+      align-items: center; gap: 3px; transition: .16s ease;
+    }
+    .flag-choice .emoji { font-size: 1.65rem; line-height: 1.2; }
+    .flag-choice .name { font-size: .68rem; font-weight: 750; white-space: nowrap; }
+    .flag-choice[aria-pressed="true"] { border-color: var(--sea-dark); background: #e9f8f5; box-shadow: inset 0 0 0 1px var(--sea-dark); transform: translateY(-1px); }
+    .flag-choice:disabled { opacity: .65; cursor: default; }
+    .hud { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: stretch; margin-bottom: 12px; }
+    .stat {
+      border: 1px solid var(--line); background: rgba(255,255,255,.78); border-radius: 16px;
+      padding: 9px 12px; min-width: 0;
+    }
+    .stat-label { color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-size: .62rem; font-weight: 850; }
+    .stat-value { font-size: 1.25rem; line-height: 1.25; font-weight: 850; font-variant-numeric: tabular-nums; }
+    .reset {
+      border: 0; border-radius: 16px; background: var(--sea-dark); color: white; padding: 0 16px;
+      font-weight: 800; cursor: pointer; box-shadow: 0 5px 12px rgba(54,159,154,.2); min-height: 54px;
+      transition: transform .15s, background .15s;
+    }
+    .reset:active { transform: scale(.97); background: #278d88; }
+    .status {
+      text-align: center; min-height: 42px; display: flex; align-items: center; justify-content: center;
+      padding: 8px 10px; margin: 0 0 10px; border-radius: 14px; color: #548084; font-size: .86rem;
+      background: rgba(255,255,255,.52);
+    }
+    .status.win { background: #e6f7eb; color: #2c8155; font-weight: 800; }
+    .status.loss { background: #fff0ec; color: #b95e54; font-weight: 800; }
+    .status.ready { background: #fff8e9; color: #8b7953; }
+    .error-box {
+      border: 2px solid #e17a70; background: #fff1ee; color: #913f38; border-radius: 16px;
+      padding: 13px 14px; margin: 0 0 12px; text-align: left; overflow-wrap: anywhere;
+    }
+    .error-box h2 { font-size: 1rem; margin: 0 0 7px; }
+    .error-box p { margin: 4px 0; font-size: .83rem; }
+    .error-box ul { margin: 7px 0 0; padding-left: 20px; font-size: .8rem; }
+    .board-wrap { display: flex; justify-content: center; }
+    .board {
+      width: min(100%, 460px, calc(100vw - 32px)); aspect-ratio: 1;
+      display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); grid-template-rows: repeat(9, minmax(0, 1fr));
+      gap: clamp(3px, .9vw, 5px); padding: clamp(7px, 2vw, 10px);
+      background: #cdebe6; border: 1px solid #b7dfd9; border-radius: 19px; box-shadow: var(--shadow);
+      touch-action: manipulation; user-select: none; -webkit-user-select: none;
+    }
+    .cell {
+      border: 0; border-radius: clamp(5px, 1.5vw, 9px); min-width: 0; min-height: 0; padding: 0;
+      display: flex; align-items: center; justify-content: center; position: relative;
+      background: linear-gradient(145deg, #ffffff, #eaf7f3); color: var(--ink);
+      box-shadow: inset 0 -2px 0 rgba(78,147,141,.12), 0 1px 2px rgba(57,117,112,.08);
+      font-size: clamp(13px, 4.4vw, 22px); font-weight: 900; line-height: 1; cursor: pointer;
+      -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; touch-action: none;
+    }
+    .cell:focus-visible { outline: 3px solid #f1a18d; outline-offset: 1px; z-index: 1; }
+    .cell:active:not(:disabled) { transform: scale(.96); }
+    .cell:disabled { cursor: default; }
+    .cell.revealed { background: #d9eee8; box-shadow: inset 0 0 0 1px rgba(83,151,139,.20), inset 0 2px 4px rgba(67,126,117,.08); }
+    .cell.flagged { background: linear-gradient(145deg, #fffaf0, #fff0d9); }
+    .cell.mine { background: #ffe2dc; }
+    .cell.exploded { background: #f58e7f; box-shadow: inset 0 0 0 2px #d65c50; }
+    .n1 { color: #3788d3; } .n2 { color: #29956b; } .n3 { color: #e36d5e; }
+    .n4 { color: #8066c5; } .n5 { color: #b74750; } .n6 { color: #269da3; }
+    .n7 { color: #36516f; } .n8 { color: #78858b; }
+    .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 15px; margin: 13px 0 0; color: #77999a; font-size: .72rem; }
+    .legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .footer-note { text-align: center; color: #83a3a1; font-size: .72rem; line-height: 1.45; margin: 14px 8px 0; }
+    .bubble { position: fixed; pointer-events: none; opacity: .42; font-size: 1.3rem; animation: float 7s ease-in-out infinite; }
+    .bubble.one { top: 14%; left: max(8px, calc(50% - 340px)); }
+    .bubble.two { top: 42%; right: max(8px, calc(50% - 345px)); animation-delay: -3s; }
+    @keyframes float { 0%,100% { transform: translateY(0) rotate(-7deg); } 50% { transform: translateY(-13px) rotate(7deg); } }
+    @media (max-width: 390px) {
+      body { padding-left: 8px; padding-right: 8px; }
+      .panel { padding: 12px; border-radius: 18px; }
+      .flag-options { gap: 5px; }
+      .flag-choice { padding: 8px 2px; }
+      .flag-choice .name { font-size: .61rem; }
+      .hud { gap: 6px; }
+      .stat { padding: 8px 9px; }
+      .reset { padding: 0 11px; font-size: .85rem; }
+      .board { width: min(100%, calc(100vw - 22px)); }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <div class="bubble one" aria-hidden="true">🫧</div>
+  <div class="bubble two" aria-hidden="true">🐚</div>
+  <div id="root"></div>
+
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // Для проверки встроенной диагностики поменяйте false на true.
+    // При true после генерации намеренно портится одно число adjacent.
+    const DEBUG_BREAK = false;
+
+    const ROWS = 9;
+    const COLS = 9;
+    const MINES = 10;
+
+    const FLAG_CHOICES = [
+      { id: "starfish", emoji: "⭐", name: "Звезда" },
+      { id: "seahorse", emoji: "🪸", name: "Коралл" },
+      { id: "fish", emoji: "🐟", name: "Рыбка" },
+      { id: "shell", emoji: "🐚", name: "Ракушка" }
+    ];
+
+    function makeEmptyBoard() {
+      return Array.from({ length: ROWS }, () =>
+        Array.from({ length: COLS }, () => ({
+          mine: false, adjacent: 0, revealed: false, flagged: false
+        }))
+      );
+    }
+
+    function getNeighbors(row, col) {
+      const neighbors = [];
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const r = row + dr;
+          const c = col + dc;
+          if (r >= 0 && r < ROWS && c >= 0 && c < COLS) neighbors.push([r, c]);
+        }
+      }
+      return neighbors;
+    }
+
+    function generateBoard(firstRow, firstCol) {
+      const board = makeEmptyBoard();
+      const safe = new Set();
+      for (let r = Math.max(0, firstRow - 1); r <= Math.min(ROWS - 1, firstRow + 1); r++) {
+        for (let c = Math.max(0, firstCol - 1); c <= Math.min(COLS - 1, firstCol + 1); c++) {
+          safe.add(`${r},${c}`);
+        }
+      }
+
+      const candidates = [];
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (!safe.has(`${r},${c}`)) candidates.push([r, c]);
+        }
+      }
+
+      // Частичное перемешивание Фишера — Йетса: выбираем ровно 10 разных клеток.
+      for (let i = 0; i < MINES; i++) {
+        const j = i + Math.floor(Math.random() * (candidates.length - i));
+        [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+        const [r, c] = candidates[i];
+        board[r][c].mine = true;
+      }
+
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (!board[r][c].mine) {
+            board[r][c].adjacent = getNeighbors(r, c)
+              .filter(([nr, nc]) => board[nr][nc].mine).length;
+          }
+        }
+      }
+
+      if (DEBUG_BREAK) {
+        // Намеренно портим первое подходящее число. Мины при этом остаются нетронутыми.
+        outer: for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            if (!board[r][c].mine) {
+              board[r][c].adjacent = (board[r][c].adjacent + 1) % 9;
+              break outer;
+            }
+          }
+        }
+      }
+      return board;
+    }
+
+    function validateBoard(board, firstRow, firstCol) {
+      const errors = [];
+      if (!Array.isArray(board) || board.length !== ROWS ||
+          board.some(row => !Array.isArray(row) || row.length !== COLS)) {
+        return ["Размер поля должен быть ровно 9×9."];
+      }
+
+      let mineCount = 0;
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          if (board[r][c].mine) mineCount++;
+        }
+      }
+      if (mineCount !== MINES) errors.push(`Количество мин: найдено ${mineCount}, ожидалось ${MINES}.`);
+
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const cell = board[r][c];
+          if (cell.mine) continue;
+          const actual = getNeighbors(r, c).filter(([nr, nc]) => board[nr][nc].mine).length;
+          if (cell.adjacent !== actual) {
+            errors.push(`Клетка (${r + 1}, ${c + 1}): записано ${cell.adjacent}, фактически ${actual}.`);
+          }
+        }
+      }
+
+      if (board[firstRow][firstCol].mine) {
+        errors.push(`Первая клетка (${firstRow + 1}, ${firstCol + 1}) содержит мину.`);
+      }
+      for (let r = Math.max(0, firstRow - 1); r <= Math.min(ROWS - 1, firstRow + 1); r++) {
+        for (let c = Math.max(0, firstCol - 1); c <= Math.min(COLS - 1, firstCol + 1); c++) {
+          if (board[r][c].mine) errors.push(`В безопасной области 3×3 найдена мина в клетке (${r + 1}, ${c + 1}).`);
+        }
+      }
+      return errors;
+    }
+
+    function revealCascade(sourceBoard, startRow, startCol) {
+      const board = sourceBoard.map(row => row.map(cell => ({ ...cell })));
+      const first = board[startRow][startCol];
+      if (first.flagged || first.revealed || first.mine) {
+        return { board, newlyRevealed: 0 };
+      }
+
+      const queue = [[startRow, startCol]];
+      const queued = new Set([`${startRow},${startCol}`]);
+      let newlyRevealed = 0;
+
+      while (queue.length) {
+        const [r, c] = queue.shift();
+        const cell = board[r][c];
+        // Флажки никогда не открываются каскадом.
+        if (cell.flagged || cell.revealed || cell.mine) continue;
+        cell.revealed = true;
+        newlyRevealed++;
+
+        if (cell.adjacent === 0) {
+          for (const [nr, nc] of getNeighbors(r, c)) {
+            const neighbor = board[nr][nc];
+            const key = `${nr},${nc}`;
+            if (!neighbor.flagged && !neighbor.revealed && !neighbor.mine && !queued.has(key)) {
+              queued.add(key);
+              queue.push([nr, nc]);
+            }
+          }
+        }
+      }
+      return { board, newlyRevealed };
+    }
+
+    function App() {
+      const [selectedFlag, setSelectedFlag] = useState("starfish");
+      const [board, setBoard] = useState(null);
+      const [gameState, setGameState] = useState("ready");
+      const [elapsedTime, setElapsedTime] = useState(0);
+      const [revealedCount, setRevealedCount] = useState(0);
+      const [flagCount, setFlagCount] = useState(0);
+      const [explodedCell, setExplodedCell] = useState(null);
+      const [validationErrors, setValidationErrors] = useState([]);
+      const timerRef = useRef(null);
+      const longPressRef = useRef(null);
+      const longPressedRef = useRef(false);
+      const activePointerRef = useRef(null);
+      const touchStartAtRef = useRef(0);
+      const suppressNextClickRef = useRef(false);
+      const lastTouchAtRef = useRef(0);
+
+      const selectedFlagEmoji = FLAG_CHOICES.find(item => item.id === selectedFlag).emoji;
+      const remainingMines = MINES - flagCount;
+      const formattedTime = `${String(Math.floor(elapsedTime / 60)).padStart(2, "0")}:${String(elapsedTime % 60).padStart(2, "0")}`;
+
+      useEffect(() => {
+        if (gameState !== "playing") return;
+        timerRef.current = window.setInterval(() => setElapsedTime(value => value + 1), 1000);
+        return () => window.clearInterval(timerRef.current);
+      }, [gameState]);
+
+      useEffect(() => () => {
+        if (longPressRef.current) window.clearTimeout(longPressRef.current);
+        if (timerRef.current) window.clearInterval(timerRef.current);
+      }, []);
+
+      function resetGame() {
+        if (longPressRef.current) window.clearTimeout(longPressRef.current);
+        setBoard(null);
+        setGameState("ready");
+        setElapsedTime(0);
+        setRevealedCount(0);
+        setFlagCount(0);
+        setExplodedCell(null);
+        setValidationErrors([]);
+        longPressedRef.current = false;
+        activePointerRef.current = null;
+      }
+
+      function startWithFirstClick(row, col) {
+        const generated = generateBoard(row, col);
+        const errors = validateBoard(generated, row, col);
+        if (errors.length) {
+          console.error("Ошибка проверки игрового поля:", errors);
+          setBoard(generated);
+          setValidationErrors(errors);
+          setGameState("error");
+          return;
+        }
+        const result = revealCascade(generated, row, col);
+        setBoard(result.board);
+        setRevealedCount(result.newlyRevealed);
+        setGameState("playing");
+        if (result.newlyRevealed === ROWS * COLS - MINES) setGameState("won");
+      }
+
+      function openCell(row, col) {
+        if (gameState === "ready") {
+          startWithFirstClick(row, col);
+          return;
+        }
+        if (gameState !== "playing" || !board) return;
+        const cell = board[row][col];
+        if (cell.revealed || cell.flagged) return;
+
+        if (cell.mine) {
+          const lostBoard = board.map(line => line.map(item => ({ ...item })));
+          setBoard(lostBoard);
+          setExplodedCell([row, col]);
+          setGameState("lost");
+          return;
+        }
+
+        const result = revealCascade(board, row, col);
+        const nextCount = revealedCount + result.newlyRevealed;
+        setBoard(result.board);
+        setRevealedCount(nextCount);
+        if (nextCount === ROWS * COLS - MINES) setGameState("won");
+      }
+
+      function toggleFlag(row, col) {
+        if (gameState === "won" || gameState === "lost" || gameState === "error") return;
+        if (gameState === "ready" || !board) return;
+        const cell = board[row][col];
+        if (cell.revealed) return;
+        const next = board.map(line => line.map(item => ({ ...item })));
+        next[row][col].flagged = !next[row][col].flagged;
+        setBoard(next);
+        setFlagCount(count => count + (next[row][col].flagged ? 1 : -1));
+      }
+
+      function handleContextMenu(event, row, col) {
+        event.preventDefault();
+        // На телефонах contextmenu вызывается самим браузером при удерживании.
+        // После любого касания игнорируем его: флажком управляет только наш таймер.
+        if (Date.now() - lastTouchAtRef.current < 2500) return;
+        toggleFlag(row, col);
+      }
+
+      function handlePointerDown(event, row, col) {
+        if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
+        lastTouchAtRef.current = Date.now();
+        if (gameState !== "playing" || !board || board[row][col].revealed) return;
+
+        activePointerRef.current = event.pointerId;
+        touchStartAtRef.current = Date.now();
+        longPressedRef.current = false;
+        suppressNextClickRef.current = false;
+        // Захват указателя не даёт случайному смещению пальца оборвать удержание.
+        try { event.currentTarget.setPointerCapture(event.pointerId); } catch (_) {}
+        if (longPressRef.current) window.clearTimeout(longPressRef.current);
+        longPressRef.current = window.setTimeout(() => {
+          longPressedRef.current = true;
+          toggleFlag(row, col);
+        }, 700);
+      }
+
+      function handlePointerEnd(event) {
+        if (activePointerRef.current !== null && event.pointerId !== activePointerRef.current) return;
+        const heldFor = touchStartAtRef.current ? Date.now() - touchStartAtRef.current : 0;
+        if (longPressRef.current) window.clearTimeout(longPressRef.current);
+        longPressRef.current = null;
+
+        // От 300 мс до 700 мс — нейтральная зона: не открываем клетку и не ставим флажок.
+        if (heldFor >= 300 && heldFor < 700) {
+          suppressNextClickRef.current = true;
+        } else if (heldFor >= 700 && !longPressedRef.current) {
+          // На случай, если отпускание и таймер совпали по времени.
+          longPressedRef.current = true;
+          const pointer = event.currentTarget;
+          const coords = pointer?.dataset?.cell?.split(",").map(Number);
+          if (coords?.length === 2) toggleFlag(coords[0], coords[1]);
+          suppressNextClickRef.current = true;
+        }
+
+        activePointerRef.current = null;
+        touchStartAtRef.current = 0;
+      }
+
+      function handleCellClick(row, col) {
+        if (suppressNextClickRef.current || longPressedRef.current) {
+          suppressNextClickRef.current = false;
+          longPressedRef.current = false;
+          return;
+        }
+        openCell(row, col);
+      }
+
+      function statusContent() {
+        if (gameState === "ready") return "Выбери морской флажок и открой любую клеточку 🫧";
+        if (gameState === "playing") return "Тише плывём — внимательнее смотрим! 🐠";
+        if (gameState === "won") return `Ура! Все безопасные клетки открыты за ${formattedTime} 🐬`;
+        if (gameState === "lost") return "Бум! Ты наткнулся на мину. Попробуем ещё раз? 💗";
+        if (gameState === "error") return "Партия остановлена: проверка поля нашла ошибку.";
+        return "";
+      }
+
+      function cellContent(cell, row, col) {
+        // После поражения показываем каждую мину, даже если на ней стоял флажок.
+        if (gameState === "lost" && cell.mine) return "💣";
+        if (cell.flagged && !cell.revealed) return selectedFlagEmoji;
+        if (cell.revealed && cell.mine) return "💣";
+        if (!cell.revealed) return "";
+        if (cell.adjacent === 0) return "";
+        return cell.adjacent;
+      }
+
+      return (
+        <main className="app">
+          <header className="header">
+            <div className="eyebrow">маленькое морское приключение</div>
+            <h1>Морской сапёр <span aria-hidden="true">🫧</span></h1>
+            <p className="subtitle">Открой безопасные клеточки и не разбуди мины!</p>
+          </header>
+
+          <section className="panel setup" aria-label="Выбор флажка">
+            <h2 className="section-title">Выбери свой флажок</h2>
+            <div className="flag-options">
+              {FLAG_CHOICES.map(choice => (
+                <button
+                  key={choice.id}
+                  type="button"
+                  className="flag-choice"
+                  aria-pressed={selectedFlag === choice.id}
+                  disabled={gameState === "playing" || gameState === "won" || gameState === "lost" || gameState === "error"}
+                  onClick={() => setSelectedFlag(choice.id)}
+                >
+                  <span className="emoji" aria-hidden="true">{choice.emoji}</span>
+                  <span className="name">{choice.name}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="hud" aria-label="Состояние игры">
+            <div className="stat">
+              <div className="stat-label">Осталось мин</div>
+              <div className="stat-value" aria-live="polite">{String(remainingMines).padStart(2, "0")}</div>
+            </div>
+            <div className="stat">
+              <div className="stat-label">Время</div>
+              <div className="stat-value" aria-live="off">{formattedTime}</div>
+            </div>
+            <button className="reset" type="button" onClick={resetGame}>↻ Заново</button>
+          </section>
+
+          <div className={`status ${gameState}`} role="status" aria-live="polite">{statusContent()}</div>
+
+          {gameState === "error" && (
+            <section className="error-box" role="alert">
+              <h2>⚠️ Ошибка проверки игрового поля</h2>
+              <p><strong>Игра заблокирована.</strong> Поле не прошло проверку после генерации.</p>
+              <ul>{validationErrors.map((error, index) => <li key={index}>{error}</li>)}</ul>
+              <p>Для обычной игры установи <code>DEBUG_BREAK = false</code> в начале кода.</p>
+            </section>
+          )}
+
+          <div className="board-wrap">
+            <div className="board" role="grid" aria-label="Игровое поле 9 на 9">
+              {Array.from({ length: ROWS }, (_, row) =>
+                Array.from({ length: COLS }, (_, col) => {
+                  const cell = board ? board[row][col] : { mine: false, adjacent: 0, revealed: false, flagged: false };
+                  const isExploded = explodedCell && explodedCell[0] === row && explodedCell[1] === col;
+                  const showMine = gameState === "lost" && cell.mine;
+                  const revealed = cell.revealed || showMine;
+                  const classes = ["cell"];
+                  if (revealed) classes.push("revealed");
+                  if (cell.flagged && !cell.revealed) classes.push("flagged");
+                  if (showMine) classes.push("mine");
+                  if (isExploded) classes.push("exploded");
+                  if (cell.revealed && cell.adjacent > 0) classes.push(`n${cell.adjacent}`);
+                  const label = cell.flagged ? `Клетка ${row + 1}, ${col + 1}, флажок` :
+                    revealed ? `Клетка ${row + 1}, ${col + 1}, ${cell.mine ? "мина" : cell.adjacent ? `рядом ${cell.adjacent} мин` : "пусто"}` :
+                    `Закрытая клетка ${row + 1}, ${col + 1}`;
+                  return (
+                    <button
+                      key={`${row}-${col}`}
+                      type="button"
+                      role="gridcell"
+                      className={classes.join(" ")}
+                      data-cell={`${row},${col}`}
+                      aria-label={label}
+                      aria-disabled={gameState === "won" || gameState === "lost" || gameState === "error"}
+                      onClick={() => handleCellClick(row, col)}
+                      onContextMenu={event => handleContextMenu(event, row, col)}
+                      onPointerDown={event => handlePointerDown(event, row, col)}
+                      onPointerUp={handlePointerEnd}
+                      onPointerCancel={handlePointerEnd}
+                    >
+                      {cellContent(cell, row, col)}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="legend" aria-label="Управление">
+            <span>🖱️ Правый клик — флажок</span>
+            <span>👆 Удержание — флажок</span>
+            <span>☝️ Касание — открыть</span>
+          </div>
+          <p className="footer-note">Поле 9 × 9 · 10 мин · первый ход всегда безопасен<br/>Собирай спокойствие по клеточкам 🌊</p>
+        </main>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
